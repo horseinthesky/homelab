@@ -1,0 +1,95 @@
+repositories:
+  - name: longhorn
+    url: https://charts.longhorn.io
+  - name: metallb
+    url: https://metallb.github.io/metallb
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+  - name: vm
+    url: https://victoriametrics.github.io/helm-charts/
+  - name: mojo2600
+    url: https://mojo2600.github.io/pihole-kubernetes/
+  - name: external-dns
+    url: https://kubernetes-sigs.github.io/external-dns/
+
+releases:
+  - name: longhorn
+    chart: longhorn/longhorn
+    namespace: longhorn
+    version: 1.8.1
+    values:
+      - ./values/lognhorn.yaml
+    hooks:
+      - events:
+          - postsync
+        command: kubectl
+        args:
+          - wait
+          - deployment.apps/longhorn-driver-deployer
+          - --namespace
+          - "{{`{{ .Release.Namespace }}`}}"
+          - --for=condition=Available
+  - name: metallb
+    chart: metallb/metallb
+    namespace: metallb
+    version: 0.14.9
+    hooks:
+      - events:
+          - postsync
+        command: kubectl
+        args:
+          - wait
+          - deployment.apps/metallb-controller
+          - --namespace
+          - "{{`{{ .Release.Namespace }}`}}"
+          - --for=condition=Available
+      - events:
+          - postsync
+        command: kubectl
+        args:
+          - apply
+          - -f
+          - ./resources/metallb
+  - name: prometheus-operator-crds
+    namespace: monitoring
+    chart: prometheus-community/prometheus-operator-crds
+  - name: vm-operator
+    namespace: vm
+    chart: vm/victoria-metrics-operator
+    version: 0.45.0
+    hooks:
+      - events:
+          - postsync
+        command: kubectl
+        args:
+          - wait
+          - deployment.apps/vm-operator-victoria-metrics-operator
+          - --namespace
+          - "{{`{{ .Release.Namespace }}`}}"
+          - --for=condition=Available
+  - name: vm-stack
+    namespace: vm
+    needs:
+      - longhorn/longhorn
+      - vm-operator
+    chart: vm/victoria-metrics-k8s-stack
+    version: 0.44.0
+    values:
+      - ./values/vm.yaml
+  - name: pihole
+    chart: mojo2600/pihole
+    namespace: pihole
+    version: 2.29.1
+    needs:
+      - longhorn/longhorn
+      - monitoring/prometheus-operator-crds
+    values:
+      - ./values/pihole.yaml
+  - name: externaldns
+    namespace: pihole
+    chart: external-dns/external-dns
+    version: 1.16.1
+    needs:
+      - pihole
+    values:
+      - ./values/externaldns.yaml

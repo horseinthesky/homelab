@@ -1,0 +1,35 @@
+persistentVolumeClaim:
+  enabled: true
+  size: 100Mi
+
+serviceDhcp:
+  enabled: false
+
+serviceWeb:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.0.44
+  annotations:
+    metallb.universe.tf/allow-shared-ip: pihole
+
+serviceDns:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.0.44
+  annotations:
+    metallb.universe.tf/allow-shared-ip: pihole
+
+ingress:
+  # enabled: true
+  hosts:
+    - pihole.lab
+
+extraEnvVars:
+  FTLCONF_dns_listeningMode: all
+  # Set a router as primary upstream
+  # FTLCONF_dns_upstreams: 192.168.0.1;8.8.8.8
+
+# Setting anything via env vars blocks the ability to change this settings via Web UI.
+# Uncomment this option as alternative to `FTLCONF_dns_listeningMode: all` env var
+# if you want to still be able to change Interface settings via Web UI.
+# dnsmasq:
+#   customSettings:
+#     - except-interface=nonexisting
